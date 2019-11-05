@@ -8,17 +8,74 @@ router.get('/', (req, res) => {
         res.status(200).json(cars);
     })
     .catch(err => res.status(500).json({ message: "server error", error: err }));
+});
+
+router.get('/:id', validateCarId, (req, res) => {
+    const id = req.params.id;
+    db('cars')
+    .where({ id: id })
+    .then(car => {
+        res.status(200).json(car);
+    })
+    .catch(err => res.status(500).json({ error: err }));
 })
 
 router.post('/', validateCar, (req, res) => {
     const car = req.body;
     db('cars')
     .insert(car)
-    .then(response => {
-        res.status(200).json(`Car created with id ${response}.`);
+    .then(id => {
+        db('cars')
+        .where({ id: id[0] })
+        .then(car => {
+            res.status(200).json(car[0]);
+        })
+        .catch(err => res.status(500).json({ error: err }));
     })
     .catch(err => res.status(500).json({ message: "server error", error: err }));
 })
+
+router.delete('/:id', validateCarId, (req, res) => {
+    const id = req.params.id;
+    db('cars')
+    .where({ id: id })
+    .del()
+    .then(count => {
+        res.status(200).json(`${count} record deleted.`);
+    })
+    .catch(err => res.status(500).json({ error: err }));
+})
+
+router.put('/:id', validateCarId, validateCar, (req, res) => {
+    const id = req.params.id;
+    const update = req.body;
+    db('cars')
+    .where({ id: id })
+    .update(update)
+    .then(count => {
+        db('cars')
+        .where({ id: id })
+        .then(car => {
+            res.status(200).json(car);
+        })
+    })
+    .catch(err => res.status(500).json({ error: err }));
+})
+
+
+
+
+// CUSTOM MIDDLEWARE
+function validateCarId(req, res, next) {
+    const id = req.params.id;
+    db('cars')
+    .where({ id: id })
+    .then(car => {
+        !car.length && res.status(404).json({ error: "Car with provided id not found." });
+        next();
+    })
+    .catch(err => res.status(500).json({ error: err }));
+}
 
 function validateCar(req, res, next) {
     const car = req.body;
